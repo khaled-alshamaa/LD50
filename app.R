@@ -122,8 +122,7 @@ server <- function(input, output) {
           facet_wrap(as.formula(paste("~", input$groups.col)), ncol=1) + 
           geom_point(position=position_jitter(width=0, height=0.05)) + 
           geom_vline(aes(xintercept=Dose, group=Treat), data=results()$ld.list, col=ld.colors) + 
-          #geom_text(aes(label=paste0("LD %", LD), group=Treat), y=0.1, angle=90, vjust=1.5, data=results()$ld.list, col=ld.colors) + 
-          xlab("Dose (µl/l)") + ylab("Mortality %") + 
+          xlab("Dose (5l/l)") + ylab("Mortality %") + 
           stat_smooth(method="glm", formula=cbind(y*input$subjects, (1-y)*input$subjects)~x, method.args=list(family=binomial(link=input$link)), fullrange=TRUE, size=1)          
   }, height=graph.height, res=150)
   
