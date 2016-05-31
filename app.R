@@ -1,7 +1,6 @@
 library(shiny)
 library(ggplot2)
 library(MASS)
-library(xtable)
 
 LD <- function(Subjects, Mortality, Dose, LD.p=0.5, Link.function='probit') {
   Dead <- round(Subjects * Mortality, digits=0)
@@ -32,11 +31,13 @@ sidebar <- sidebarPanel(
   tags$img(src='icarda.png', height=90, width=190),
   fileInput('datafile', 'Upload Your Data:', accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
   sliderInput('p', 'Effective (or Lethal) Dose:', min=0, max=100, value=50),
-  radioButtons('link', 'Link Function:', c('Logit'='logit', 'Probit'='probit')),
-  numericInput('subjects', 'Number of Subjects:', 10),
+  selectInput('link', 'Link Function:', c('Logit'='logit', 'Probit'='probit', 'log-log'='loglog')),
+  selectInput('transform', 'Take logs of Explanatory:', c('None'='none', 'Base 10'='log', 'Base e'='ln')),
+  numericInput('subjects', 'Number of Subjects:*', 10),
   uiOutput('mortality.col'),
   uiOutput('dose.col'),
-  uiOutput('groups.col')
+  uiOutput('groups.col'),
+  tags$small(tags$em('Tip: click Backspace to unselect groups.'))
 )
 
 # Body ---------------------------------------------------------------
@@ -77,15 +78,15 @@ server <- function(input, output) {
   
   # Build user interface
   output$mortality.col <- renderUI({
-    selectInput('mortality.col', 'Column of Mortality%:', as.list(c('', colnames(importedData()))))
+    selectInput('mortality.col', 'Ratio Responding (e.g. Mortality%):*', as.list(c('', colnames(importedData()))))
   })
   
   output$dose.col <- renderUI({
-    selectInput('dose.col', 'Column of Dose:', as.list(c('', colnames(importedData()))))
+    selectInput('dose.col', 'Explanatory Variate (e.g. Dose):*', as.list(c('', colnames(importedData()))))
   })
   
   output$groups.col <- renderUI({
-    selectInput('groups.col', 'Column of Groups:', as.list(c('', '', colnames(importedData()))))
+    selectInput('groups.col', 'Groups (e.g. Treatment):', c('None'='', as.list(colnames(importedData()))))
   })
 
   # Do the Analysis
@@ -122,28 +123,34 @@ server <- function(input, output) {
     500*length(levels(results()$ld.list$Treat))
   })
   
-  output$ld.graph <- renderPlot({
+  mortality.plot <- reactive({
     g <- ggplot(importedData(), aes(x=importedData()[,input$dose.col], y=importedData()[,input$mortality.col])) + 
-                geom_point(position=position_jitter(width=0, height=0.05)) + 
-                geom_vline(aes(xintercept=Dose, group=Treat), data=results()$ld.list, col='red') + 
-                geom_text(aes(x=Dose, label=paste0('LD %', input$p), group=Treat), y=0.1, angle=90, vjust=1.5, data=results()$ld.list, col='red') + 
-                xlab(input$dose.col) + ylab(input$mortality.col) + 
-                stat_smooth(method='glm', formula=cbind(y*input$subjects, (1-y)*input$subjects)~x, method.args=list(family=binomial(link=input$link)), fullrange=TRUE, size=1)
+      geom_point(position=position_jitter(width=0, height=0.05)) + 
+      #geom_vline(aes(xintercept=Dose, group=Treat), data=results()$ld.list, col='red') + 
+      #geom_text(aes(x=Dose, label=paste0('LD %', input$p), group=Treat), y=0.1, angle=90, vjust=1.5, data=results()$ld.list, col='red') + 
+      xlab(input$dose.col) + ylab(input$mortality.col) + 
+      stat_smooth(method='glm', formula=cbind(y*input$subjects, (1-y)*input$subjects)~x, method.args=list(family=binomial(link=input$link)), fullrange=TRUE, size=1)
     
     if(input$groups.col != '') {
       g <- g + facet_wrap(as.formula(paste('~', input$groups.col)), ncol=1)
     }
     
     g
+  })
+  
+  output$ld.graph <- renderPlot({
+    print(mortality.plot())
   }, height=graph.height, res=96)
   
   
   output$downloadGraph <- downloadHandler(
     filename = 'test.png',
     content = function(file) {
-      device <- function(..., width=6, height=12) grDevices::png(..., width = 6, height = 12, res = 600, units = 'in')
-      ggsave(file, device = device)
-    }
+      png(file, res=600, height=12, width=6, units="in")
+      print(mortality.plot())
+      dev.off()
+    },
+    contentType = 'image/png'
   )  
 }
               
