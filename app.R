@@ -1,6 +1,7 @@
 library(shiny)
 library(ggplot2)
 library(MASS)
+library(xlsx)
 
 ld <- function(subjects, responding, dose, ldP=0.5, linkFunction='probit') {
   dead <- responding
@@ -36,7 +37,7 @@ sidebar <- sidebarPanel(
   ),
   
   tags$img(src='icarda.png', height=90, width=190),
-  fileInput('datafile', 'Upload Your Data:', accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
+  fileInput('datafile', 'Upload Your Data:', accept=c('application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls', '.xlsx')),
   sliderInput('p', 'Effective (or Lethal) Dose:', min=0, max=100, value=50),
   selectInput('link', 'Link Function:', c('Logit'='logit', 'Probit'='probit', 'Complementary log-log'='cloglog')),
   selectInput('transform', 'Take logs of Explanatory:', c('None'='none', 'Base 10'='log', 'Base e'='ln')),
@@ -54,7 +55,8 @@ body <- mainPanel(
             tabPanel('Input Data', tags$h2('Input Data'), dataTableOutput('contents')),
             tabPanel('Analysis Output', tags$h2('Analysis Output'), tableOutput('ldList')),
             tabPanel('Graphics Output', tags$h2('Graphics Output'), downloadButton('downloadGraph', 'Download High Resolution Graph'), plotOutput('ldGraph')),
-            tabPanel('Help', tags$h2('Help'), withMathJax(), 
+            tabPanel('Help', tags$h2('Help'), withMathJax(),
+                     tags$a(href='data.xlsx', 'Sample Data File'),
                      tags$h4('Logit function (1944): $$Pr(x) = \\frac{1}{1+e^{-(a+b.x)}}$$
                               Probit function (1933): $$Pr(x) = \\phi{(a+b.x)}$$
                               Where $\\phi$ is the standard normal Cumulative Distribution Function (CDF):
@@ -77,7 +79,7 @@ server <- function(input, output) {
     
     if (is.null(inFile)) return(NULL)
     
-    read.csv(inFile$datapath, header=TRUE)
+    read.xlsx(inFile$datapath, sheetIndex=1, header=TRUE)
   })
   
   output$contents <- renderDataTable({
