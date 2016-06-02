@@ -108,7 +108,10 @@ server <- function(input, output) {
     validate(
       need(input$subjectsCol != '', 'Please select numbers of subjects column'),
       need(input$respondingCol != '', 'Please select numbers of responding column'),
-      need(input$doseCol != '', 'Please select explanatory variate column'),
+      need(input$doseCol != '', 'Please select explanatory variate column')
+    )
+    
+    validate(
       need(input$transform == 'none' | all(importedData()[,input$doseCol] > 0), 'You can not take logs for 0 or negative explanatory values!')
     )
     
@@ -129,7 +132,7 @@ server <- function(input, output) {
       groups <- as.factor(rep.int('All', length(dose)))
     }
     
-    list('subjects'=subjects, 'responding'=responding, 'dose'=dose, 'groups'=groups)
+    data.frame(subjects, responding, dose, groups)
   })
   
   # Do the Analysis
@@ -159,15 +162,13 @@ server <- function(input, output) {
   })
   
   respondingPlot <- reactive({
-    g <- ggplot(importedData(), aes(x=modelInputs()$dose, y=modelInputs()$responding/modelInputs()$subjects)) + 
-      geom_point(position=position_jitter(width=0, height=0.05)) + 
-      geom_vline(aes(xintercept=Dose, group=Treat), data=results(), col='red') + 
-      geom_text(aes(x=Dose, label=paste0('LD %', input$p), group=Treat), y=0.1, angle=90, vjust=1.5, data=results(), col='red') + 
-      xlab(input$doseCol) + ylab(paste(input$respondingCol, '%')) + 
+    g <- ggplot(modelInputs(), aes(x=dose, y=responding/subjects)) +
+      facet_wrap(~Treat, ncol=1) + 
+      geom_point(position=position_jitter(width=0, height=0.05)) +
+      geom_vline(aes(xintercept=Dose, group=Treat), data=results(), col='red') +
+      geom_text(aes(x=Dose, label=paste0('LD %', input$p), group=Treat), y=0.1, angle=90, vjust=1.5, data=results(), col='red') +
+      xlab(input$doseCol) + ylab(paste(input$respondingCol, '%')) +
       stat_smooth(method='glm', formula=cbind(y*10, (1-y)*10)~x, method.args=list(family=binomial(link=input$link)), fullrange=TRUE, size=1)
-    
-    if(input$groupsCol != '') g <- g + facet_wrap(as.formula(paste('~', input$groupsCol)), ncol=1)
-    g
   })
   
   output$ldGraph <- renderPlot({
