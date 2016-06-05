@@ -39,6 +39,7 @@ sidebar <- sidebarPanel(
   tags$img(src='icarda.png', height=90, width=190),
   fileInput('datafile', 'Upload Your Data:', accept=c('application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls', '.xlsx')),
   sliderInput('p', 'Effective (or Lethal) Dose:', min=0, max=100, value=50),
+  sliderInput('conf', 'Level of Confidence Interval:', min=0, max=100, value=80),
   selectInput('link', 'Link Function:', c('Logit'='logit', 'Probit'='probit', 'Complementary log-log'='cloglog')),
   selectInput('transform', 'Take logs of Explanatory:', c('None'='none', 'Base 10'='log', 'Base e'='ln')),
   uiOutput('subjectsCol'),
@@ -162,13 +163,14 @@ server <- function(input, output) {
   })
   
   respondingPlot <- reactive({
-    g <- ggplot(modelInputs(), aes(x=dose, y=responding/subjects)) +
-      facet_wrap(~Treat, ncol=1) + 
-      geom_point(position=position_jitter(width=0, height=0.05)) +
-      geom_vline(aes(xintercept=Dose, group=Treat), data=results(), col='red') +
-      geom_text(aes(x=Dose, label=paste0('LD %', input$p), group=Treat), y=0.1, angle=90, vjust=1.5, data=results(), col='red') +
-      xlab(input$doseCol) + ylab(paste(input$respondingCol, '%')) +
-      stat_smooth(method='glm', formula=cbind(y*10, (1-y)*10)~x, method.args=list(family=binomial(link=input$link)), fullrange=TRUE, size=1)
+    data <- merge(modelInputs(), results(), by.x="groups", by.y="Treat", all.x=TRUE)
+    g <- ggplot(data, aes(x=dose, y=responding/subjects))
+    g <- g + facet_wrap(~groups, ncol=1)
+    g <- g + geom_point(position=position_jitter(width=0, height=0.05))
+    g <- g + geom_vline(aes(xintercept=Dose), col='red')
+    g <- g + geom_text(aes(x=Dose, label=paste0('LD %', input$p)), y=0.1, angle=90, vjust=1.5, col='red')
+    g <- g + xlab(input$doseCol) + ylab(paste(input$respondingCol, '%'))
+    g <- g + stat_smooth(method='glm', method.args=list(family=binomial(link=input$link)), level=input$conf/100, fullrange=TRUE, size=1)
   })
   
   output$ldGraph <- renderPlot({
