@@ -1,0 +1,1 @@
+tabPanel('Input Data', tags$h2('Input Data'), dataTableOutput('contents'))

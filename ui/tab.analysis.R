@@ -1,0 +1,1 @@
+tabPanel('Analysis Output', tags$h2('Model Parameters'), htmlOutput('modelParam'), tags$h2('Analysis Output'), tableOutput('ldList'), downloadButton('downloadResults', 'Download'),tags$h2('Summary Statistics'), verbatimTextOutput("summary"))

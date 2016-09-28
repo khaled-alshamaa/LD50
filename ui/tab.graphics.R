@@ -1,0 +1,1 @@
+tabPanel('Graphics Output', tags$h2('Graphics Output'), downloadButton('downloadGraph', 'Download High Resolution Graph'), plotOutput('ldGraph'))
