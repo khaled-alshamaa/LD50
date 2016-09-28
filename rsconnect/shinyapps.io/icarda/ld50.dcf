@@ -2,8 +2,8 @@ name: ld50
 account: icarda
 server: shinyapps.io
 appId: 105015
-bundleId: 471883
+bundleId: 476171
 url: https://icarda.shinyapps.io/ld50/
-when: 1465108550.39499
+when: 1465453151.42305
 asMultiple: FALSE
 asStatic: FALSE

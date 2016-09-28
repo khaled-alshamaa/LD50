@@ -26,27 +26,28 @@ ld <- function(subjects, responding, dose, ldP=0.5, linkFunction='probit') {
 
 # Header ------------------------------------------------------------
 
-header <- headerPanel('LD50')
+header <- headerPanel('ICARDA BioComputing Online (Phase II): Lethal Dose/Concentration Calculator')
 
 # Sidebar -----------------------------------------------------------
 
 sidebar <- sidebarPanel(
   tags$head(
-    tags$style(type="text/css", ".col-sm-4 { max-width: 350px; } "),
-    tags$style(type="text/css", ".well { max-width: 340px; }")
+    tags$style(type="text/css", ".col-sm-4 { max-width: 360px; } "),
+    tags$style(type="text/css", ".well { max-width: 350px; }")
   ),
   
   tags$img(src='icarda.png', height=90, width=190),
   fileInput('datafile', 'Upload Your Data:', accept=c('application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xls', '.xlsx')),
-  sliderInput('p', 'Effective (or Lethal) Dose:', min=0, max=100, value=50),
-  sliderInput('conf', 'Level of Confidence Interval:', min=0, max=100, value=80),
-  selectInput('link', 'Link Function:', c('Logit'='logit', 'Probit'='probit', 'Complementary log-log'='cloglog')),
-  selectInput('transform', 'Take logs of Explanatory:', c('None'='none', 'Base 10'='log', 'Base e'='ln')),
-  uiOutput('subjectsCol'),
-  uiOutput('respondingCol'),
-  uiOutput('doseCol'),
-  uiOutput('groupsCol'),
-  tags$small(tags$em('Tip: click Backspace to unselect groups.'))
+  tags$div(title='p hint', sliderInput('p', 'Effective (or Lethal) Dose/Concentration:', min=0, max=100, value=50)),
+  tags$div(title='conf hint', sliderInput('conf', 'Level of Confidence Interval:', min=0, max=100, value=80)),
+  tags$div(title='Function of the response proportion to link to linear function of dose', selectInput('link', 'Link Function:', c('Logit'='logit', 'Probit'='probit', 'Complementary log-log'='cloglog'))),
+  tags$div(title='To transform the Explanatory to a linear scale', selectInput('transform', 'Take logs of Explanatory:', c('None'='none', 'Base 10'='log', 'Base e'='ln'))),
+  tags$div(title='e.g. Total subjects tested', uiOutput('subjectsCol')),
+  tags$div(title='e.g. Dead subjects observed', uiOutput('respondingCol')),
+  tags$div(title='e.g. Dose', uiOutput('doseCol')),
+  tags$div(title='e.g. Treatment', uiOutput('groupsCol')),
+  tags$small(tags$em('Tip: click Backspace to unselect groups.')),
+  tags$hr(), bookmarkButton()
 )
 
 # Body ---------------------------------------------------------------
@@ -54,15 +55,26 @@ sidebar <- sidebarPanel(
 body <- mainPanel(
           tabsetPanel(
             tabPanel('Input Data', tags$h2('Input Data'), dataTableOutput('contents')),
-            tabPanel('Analysis Output', tags$h2('Analysis Output'), tableOutput('ldList')),
+            tabPanel('Analysis Output', tags$h2('Model Parameters'), htmlOutput('modelParam'), tags$h2('Analysis Output'), tableOutput('ldList'), downloadButton('downloadResults', 'Download'),tags$h2('Summary Statistics'), verbatimTextOutput("summary")),
             tabPanel('Graphics Output', tags$h2('Graphics Output'), downloadButton('downloadGraph', 'Download High Resolution Graph'), plotOutput('ldGraph')),
             tabPanel('Help', tags$h2('Help'), withMathJax(),
+                     'In toxicology, the median lethal dose, LD50 (abbreviation for "lethal dose, 50%"), LC50 (lethal concentration, 50%) 
+                     is a measure of the lethal dose of a toxin, radiation, or pathogen. The value of LD50 for a substance is the dose 
+                     required to kill half the members of a tested population after a specified test duration.',
+                     
                      tags$a(href='data.xlsx', 'Sample Data File'),
-                     tags$h4('Logit function (1944): $$Pr(x) = \\frac{1}{1+e^{-(a+b.x)}}$$
-                              Probit function (1933): $$Pr(x) = \\phi{(a+b.x)}$$
-                              Where $\\phi$ is the standard normal Cumulative Distribution Function (CDF):
-                              $$\\phi(x) = \\frac{1}{\\sqrt{2\\pi}} \\int_{-\\infty}^{x} e^{(-t^2/2)} dt$$
-                             Complementary log-log (1922): $$Pr(x) = 1-e^{-e^{a+b.x}}$$'))
+                     tags$h4('Citation:'),
+                     tags$cite(textOutput('citation')),
+                     tags$h4('Contact us:'),
+                     tags$address('Maintainer:	Khaled El-Sham\'aa <k.el-shamaa at cgiar.org>'),
+                     tags$h4('J. Berkson (1944), Logit function:'),
+                     tags$blockquote('$$Pr(x) = \\frac{1}{1+e^{-(a+b.x)}}$$'),
+                     tags$h4('C. I. Bliss (1934), Probit function:'),
+                     tags$blockquote('$$Pr(x) = \\phi{(a+b.x)}$$'),
+                     tags$h4('Where normal Cumulative Distribution Function (CDF):'),
+                     tags$blockquote('$$\\phi(x) = \\frac{1}{\\sqrt{2\\pi}} \\int_{-\\infty}^{x} e^{(-t^2/2)} dt$$'),
+                     tags$h4('R. A. Fisher (1922), Complementary log-log:'),
+                     tags$blockquote('$$Pr(x) = 1-e^{-e^{a+b.x}}$$'))
           )
 )
 
@@ -72,7 +84,7 @@ ui <- shinyUI(pageWithSidebar(header, sidebar, body))
 
 # Setup Shiny app back-end components -------------------------------------
 
-server <- function(input, output) { 
+server <- function(input, output, session) { 
     
   # Import Data
   importedData <- reactive({  
@@ -102,6 +114,15 @@ server <- function(input, output) {
   
   output$groupsCol <- renderUI({
     selectInput('groupsCol', 'Groups (e.g. Treatment):', c('None'='', as.list(colnames(importedData()))))
+  })
+  
+  output$citation <- renderText({
+    url <- paste0(session$clientData$url_protocol, '//', session$clientData$url_hostname)
+    if(session$clientData$url_port != '') url <- paste0(url, ':', session$clientData$url_port)
+    url <- paste0(url, session$clientData$url_pathname)
+    
+    citeDate <- format(Sys.Date(), format='%Y, %B %d')
+    paste0('Biometrics and Statistics Section, ICARDA. (', citeDate, '). LD50 (Version 1.0) [Web application]. Retrieved from ', url)
   })
 
   # Read the Data
@@ -149,7 +170,7 @@ server <- function(input, output) {
       ldList <- rbind(ldList, data.frame(i, input$p, val$x, val$se, val$a, val$ase, val$b, val$bse))
     }
 
-    names(ldList) <- c('Treat', 'LD', 'Dose', 'SE', 'Intercept (a)', 'a SE', 'Coefficient (b)', 'b SE')
+    names(ldList) <- c('Treat', 'LD/LC', 'Dose', 'SE', 'Intercept (a)', 'a SE', 'Coefficient (b)', 'b SE')
     row.names(ldList) <- NULL
     ldList
   })
@@ -157,6 +178,23 @@ server <- function(input, output) {
   output$ldList <- renderTable({
     results()
   }, digits=c(0, 0, 0, 2, 3, 3, 4, 3, 4))
+  
+  output$downloadResults <- downloadHandler(
+    filename = function() { paste0(input$datafile$name, '.csv') },
+    content = function(file) {
+      write.csv(results(), file)
+    }
+  )
+  
+  output$summary <- renderPrint({
+    summary(data.frame(Dose=modelInputs()$dose, Responding=modelInputs()$responding, Subjects=modelInputs()$subjects, Groups=factor(modelInputs()$groups)))
+  })
+  
+  output$modelParam <- renderText({
+    l.label <- list('logit'='Logit', 'probit'='Probit', 'cloglog'='Complementary log-log')
+    t.label <- list('none'='None', 'log'='Logarithmic Transformation (Base 10)', 'ln'='Natural Logarithm (Base e)')
+    print(paste('<u>Link Function:</u>', l.label[input$link], '<br/>\n', '<u>Explanatory Transformation:</u>', input$transform))
+  })
   
   graphHeight <- reactive({
     600*length(levels(results()$Treat))
@@ -193,4 +231,5 @@ server <- function(input, output) {
               
 # Render Shiny app --------------------------------------------------------
 
+enableBookmarking(store="url")
 shinyApp(ui, server)
