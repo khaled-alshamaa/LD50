@@ -59,7 +59,9 @@ ui <- shinyUI(pageWithSidebar(header, sidebar, body))
 # Setup Shiny app back-end components -------------------------------------
 
 server <- function(input, output, session) { 
-    
+  # Need to exclude the dynamic uiOutput inputs
+  setBookmarkExclude(c('datafile', 'subjectsCol', 'respondingCol', 'doseCol', 'groupsCol'))
+  
   # Automatically stop a Shiny app when closing the browser tab
   session$onSessionEnded(stopApp)
   
@@ -67,9 +69,18 @@ server <- function(input, output, session) {
   source(file.path('server', 'run.analysis.R'), local=TRUE)$value
   source(file.path('server', 'run.graphics.R'), local=TRUE)$value
   source(file.path('server', 'run.help.R'), local=TRUE)$value
+  
+  onRestore(function(state) {
+    query <- parseQueryString(session$clientData$url_search)
+    
+    updateSliderInput(session, 'p', value=query[['p']])
+    updateSliderInput(session, 'conf', value=query[['conf']])
+    updateSelectInput(session, 'link', selected=gsub('"', '', query[['link']]))
+    updateSelectInput(session, 'transform', selected=gsub('"', '', query[['transform']]))
+  })
 }
               
 # Render Shiny app --------------------------------------------------------
 
-enableBookmarking(store="url")
+enableBookmarking('url')
 shinyApp(ui, server)
