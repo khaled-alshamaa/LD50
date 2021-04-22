@@ -22,7 +22,7 @@ Estimate of the Lethal Dose/Concentration, standard errors, fitted model paramet
 > If there is a grouping factor (e.g. different types of pesticides), the analysis will be performed for each grouping level separately.
 
 ## Online Demo
-You can demonstrate an online demo of this application available here: [http://geoagro.icarda.org/bss/shinyapps/ld50](http://geoagro.icarda.org/bss/shinyapps/ld50)
+You can demonstrate an online demo of this application available here: [https://icarda.shinyapps.io/ld50/](https://icarda.shinyapps.io/ld50/)
 
 ## Related Book Chapter
 More information can be found in the following book chapter:
